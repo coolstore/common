@@ -49,6 +49,28 @@ function init() {
 
 }
 
+function wait_while_empty() {
+  local _NAME=$1
+  local _TIMEOUT=$(($2/5))
+  local _CONDITION=$3
+
+  echo "Waiting for $_NAME to be ready..."
+  local x=1
+  while [ -z "$(eval ${_CONDITION})" ]
+  do
+    echo "."
+    sleep 5
+    x=$(( $x + 1 ))
+    if [ $x -gt $_TIMEOUT ]
+    then
+      echo "$_NAME still not ready, I GIVE UP!"
+      exit 255
+    fi
+  done
+
+  echo "$_NAME is ready."
+}
+
 function print_info() {
   echo "OpenShift Master:    ${OPENSHIFT_MASTER}"
   echo "OpenShift Project:   ${OPENSHIFT_PROJECT}"
@@ -57,6 +79,7 @@ function print_info() {
   echo "Host suffix:         ${HOST_SUFFIX}"
   echo "Interactive mode:    ${INTERACTIVE_MODE}"
   echo "Build only mode:     ${BUILD_ONLY}"
+  echo "Rebuild:             ${REBUILD}"
   echo "Script name:         ${SCRIPT_NAME}"
   echo "Script directory:    ${SCRIPT_DIR}"
   if [ ! -z "${COOLSTORE_GW_ENDPOINT}" ]; then
@@ -109,6 +132,12 @@ while [ "$1" != "" ]; do
             INTERACTIVE_MODE=false
             if [ "$VALUE" == "true" ]; then
                 INTERACTIVE_MODE=true
+            fi
+            ;;
+        -r|--rebuild)
+            REBUILD=true
+            if [ "$VALUE" == "false" ]; then
+                REBUILD=false
             fi
             ;;
         -g|--gateway)
