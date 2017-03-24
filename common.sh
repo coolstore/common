@@ -43,7 +43,7 @@ function init() {
     oc delete route testroute > /dev/null  
   fi
 
-  if [ -z "${COOLSTORE_GW_ENDPOINT}" ] && [ -z "${MODULE_NAME}" ];  then
+  if [ -z "${COOLSTORE_GW_ENDPOINT}" ];  then
     COOLSTORE_GW_ENDPOINT="http://gateway-${HOST_SUFFIX}"
   fi
 
