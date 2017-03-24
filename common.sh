@@ -27,6 +27,10 @@ function pre_checks() {
 }
 
 function init() {
+
+  echo_header "Running pre-checks...."
+  pre_checks
+
   # oc status don't work if the user don't have a project, so in that case we will create a coolstore project for the user.
   if oc get project 2>&1 | grep -q "No resources found"; then
     TEMP_PROJECT=$(mktemp -u XXXXXXXXXXXXXXXXXXXX)
@@ -56,6 +60,10 @@ function init() {
   if [ ! -z ${TEMP_PROJECT} ]; then
     oc delete project ${TEMP_PROJECT} > /dev/null
   fi
+
+  echo_header "Configuration"
+  print_info
+
 
 }
 
@@ -203,11 +211,3 @@ while [ "$1" != "" ]; do
     shift
 done
 
-echo_header "Running pre-checks...."
-pre_checks
-
-echo_header "Initialize the settings"
-init
-
-echo_header "Configuration"
-print_info
