@@ -11,6 +11,7 @@ INTERACTIVE_MODE=true
 BUILD_ONLY=false # Changed with flav -b
 REBUILD=false # Changed with flag -r
 INSTALL_SSO=false # Changed with --install-sso
+TEMP_PROJECT="" #Only used when the the user doesn't have a project
 
 function echo_header() {
   echo
@@ -20,12 +21,17 @@ function echo_header() {
 }
 
 function pre_checks() {
-  oc status >/dev/null 2>&1 || { echo >&2  "You are not connected to OCP cluster, please login using oc login ... before running $SCRIPT_NAME!"; exit 1; }
+  oc whoami > /dev/null 2>&1 >/dev/null 2>&1 || { echo >&2  "You are not connected to OCP cluster, please login using oc login ... before running $SCRIPT_NAME!"; exit 1; }
   mvn -v -q >/dev/null 2>&1 || { echo >&2 "Maven is required but not installed yet... aborting."; exit 2; }
   oc version | grep openshift | grep -q "v3\.[4-9]" || { echo >&2 "Only OpenShift Container Platfrom 3.4 or later is supported"; exit 3; }
 }
 
 function init() {
+  # oc status don't work if the user don't have a project, so in that case we will create a coolstore project for the user.
+  if oc get project 2>&1 | grep -q "No resources found"; then
+    TEMP_PROJECT=$(mktemp -u XXXXXXXXXXXXXXXXXXXX)
+    oc new-project $TEMP_PROJECT > /dev/null
+  fi
   
   OPENSHIFT_MASTER=$(oc status | head -1 | sed 's#.*\(https://[^ ]*\)#\1#g') # must run after projects are created
   OPENSHIFT_PROJECT=$(oc project | head -1 | sed 's#Using project "\(.*\)" on server.*#\1#g')
@@ -45,6 +51,10 @@ function init() {
     if ${INSTALL_SSO}; then
       SSO_URL="http://sso-${HOST_SUFFIX}"
     fi
+  fi
+
+  if [ ! -z ${TEMP_PROJECT} ]; then
+    oc delete project ${TEMP_PROJECT} > /dev/null
   fi
 
 }
@@ -73,10 +83,12 @@ function wait_while_empty() {
 
 function print_info() {
   echo "OpenShift Master:    ${OPENSHIFT_MASTER}"
-  echo "OpenShift Project:   ${OPENSHIFT_PROJECT}"
-  echo "Demo Module          ${MODULE_NAME:-N/A}"
   echo "Domain:              ${DOMAIN}"
-  echo "Host suffix:         ${HOST_SUFFIX}"
+  if [ ! -z "${MODULE_NAME}" ]; then
+    echo "Demo Module          ${MODULE_NAME:-N/A}"
+    echo "Host suffix:         ${HOST_SUFFIX}"
+    echo "OpenShift Project:   ${OPENSHIFT_PROJECT}"
+  fi
   echo "Interactive mode:    ${INTERACTIVE_MODE}"
   echo "Build only mode:     ${BUILD_ONLY}"
   echo "Rebuild:             ${REBUILD}"
@@ -162,6 +174,18 @@ while [ "$1" != "" ]; do
               fi
             else
               SSO_URL=$VALUE
+            fi
+            ;;
+        -n|--project)
+            if [ "$VALUE" == "" ]; then
+              shift # past argument
+              PROJECT=$1
+              if [ "$PROJECT" == "" ]; then
+                echo "Parameter -n, --project requires a value containing a SSO URL"
+                exit 1
+              fi
+            else
+              PROJECT=$VALUE
             fi
             ;;
         --install-sso)
